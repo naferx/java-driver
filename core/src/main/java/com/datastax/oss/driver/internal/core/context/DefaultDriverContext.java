@@ -524,6 +524,21 @@ public class DefaultDriverContext implements InternalDriverContext {
                             "Missing request tracker, check your configuration (%s)",
                             DefaultDriverOption.REQUEST_TRACKER_CLASS)));
   }
+  protected AuthProvider BuildAuthProvider(AuthProvider authProviderFromBuilder) {
+    return (requestTrackerFromBuilder != null)
+        ? requestTrackerFromBuilder
+        : Reflection.buildFromConfig(
+        this,
+        DefaultDriverOption.REQUEST_TRACKER_CLASS,
+        RequestTracker.class,
+        "com.datastax.oss.driver.internal.core.tracker")
+        .orElseThrow(
+            () ->
+                new IllegalArgumentException(
+                    String.format(
+                        "Missing request tracker, check your configuration (%s)",
+                        DefaultDriverOption.REQUEST_TRACKER_CLASS)));
+  }
 
   @NonNull
   @Override
