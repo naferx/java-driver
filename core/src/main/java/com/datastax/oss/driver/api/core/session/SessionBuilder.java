@@ -219,6 +219,18 @@ public abstract class SessionBuilder<SelfT extends SessionBuilder, SessionT> {
   }
 
   /**
+   * Register an auth provider
+   *
+   * <p>If the auth provider is specified programmatically with this method, it overrides the
+   * configuration (that is, the {@code advanced.auth-provider} option will be ignored).
+   */
+  @NonNull
+  public SelfT WithAuth(@Nullable AuthProvider authProvider) {
+    this.programmaticArgumentsBuilder.withAuthProvider(authProvider);
+    return self;
+  }
+
+  /**
    * Specifies the datacenter that is considered "local" by the load balancing policy.
    *
    * <p>This is a programmatic alternative to the configuration option {@code
@@ -303,9 +315,6 @@ public abstract class SessionBuilder<SelfT extends SessionBuilder, SessionT> {
     this.programmaticArgumentsBuilder.withClassLoader(classLoader);
     return self;
   }
-  public SelfT WithAuthProvider(@Nullable AuthProvider provider{
-
-  })
 
   /**
    * Creates the session with the options set by this builder.
@@ -404,7 +413,6 @@ public abstract class SessionBuilder<SelfT extends SessionBuilder, SessionT> {
       NodeStateListener nodeStateListener,
       SchemaChangeListener schemaChangeListener,
       RequestTracker requestTracker,
-      AuthProvider authProvider,
       Map<String, String> localDatacenters,
       Map<String, Predicate<Node>> nodeFilters,
       ClassLoader classLoader) {
