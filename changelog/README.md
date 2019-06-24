@@ -4,6 +4,7 @@
 
 ### 4.2.0 (in progress)
 
+- [improvement] JAVA-2303: Ignore peer rows matching the control host's RPC address
 
 ### 4.1.0
 

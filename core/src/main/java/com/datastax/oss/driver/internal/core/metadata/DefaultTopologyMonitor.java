@@ -71,7 +71,6 @@ public class DefaultTopologyMonitor implements TopologyMonitor {
   private final CompletableFuture<Void> closeFuture;
 
   @VisibleForTesting volatile boolean isSchemaV2;
-  @VisibleForTesting volatile int port = -1;
 
   public DefaultTopologyMonitor(InternalDriverContext context) {
     this.logPrefix = context.getSessionName();
@@ -162,8 +161,6 @@ public class DefaultTopologyMonitor implements TopologyMonitor {
     DriverChannel channel = controlConnection.channel();
     EndPoint localEndPoint = channel.getEndPoint();
 
-    savePort(channel);
-
     CompletionStage<AdminResult> localQuery = query(channel, "SELECT * FROM system.local");
     CompletionStage<AdminResult> peersV2Query = query(channel, "SELECT * FROM system.peers_v2");
     CompletableFuture<AdminResult> peersQuery = new CompletableFuture<>();
@@ -197,14 +194,18 @@ public class DefaultTopologyMonitor implements TopologyMonitor {
         (controlNodeResult, peersResult) -> {
           List<NodeInfo> nodeInfos = new ArrayList<>();
           AdminRow localRow = controlNodeResult.iterator().next();
-          InetSocketAddress localBroadcastRpcAddress = getBroadcastRpcAddress(localRow);
+          InetSocketAddress localBroadcastRpcAddress =
+              getBroadcastRpcAddress(localRow, localEndPoint);
           nodeInfos.add(nodeInfoBuilder(localRow, localBroadcastRpcAddress, localEndPoint).build());
           for (AdminRow peerRow : peersResult) {
             if (isPeerValid(peerRow)) {
-              InetSocketAddress peerBroadcastRpcAddress = getBroadcastRpcAddress(peerRow);
-              NodeInfo nodeInfo =
-                  nodeInfoBuilder(peerRow, peerBroadcastRpcAddress, localEndPoint).build();
-              nodeInfos.add(nodeInfo);
+              InetSocketAddress peerBroadcastRpcAddress =
+                  getBroadcastRpcAddress(peerRow, localEndPoint);
+              if (peerBroadcastRpcAddress != null) {
+                NodeInfo nodeInfo =
+                    nodeInfoBuilder(peerRow, peerBroadcastRpcAddress, localEndPoint).build();
+                nodeInfos.add(nodeInfo);
+              }
             }
           }
           return nodeInfos;
@@ -263,8 +264,10 @@ public class DefaultTopologyMonitor implements TopologyMonitor {
     if (iterator.hasNext()) {
       AdminRow row = iterator.next();
       if (isPeerValid(row)) {
-        InetSocketAddress peerBroadcastRpcAddress = getBroadcastRpcAddress(row);
-        return Optional.of(nodeInfoBuilder(row, peerBroadcastRpcAddress, localEndPoint).build());
+        return Optional.ofNullable(getBroadcastRpcAddress(row, localEndPoint))
+            .map(
+                broadcastRpcAddress ->
+                    nodeInfoBuilder(row, broadcastRpcAddress, localEndPoint).build());
       }
     }
     return Optional.empty();
@@ -364,7 +367,7 @@ public class DefaultTopologyMonitor implements TopologyMonitor {
   private Optional<NodeInfo> findInPeers(
       AdminResult result, InetSocketAddress broadcastRpcAddressToFind, EndPoint localEndPoint) {
     for (AdminRow row : result) {
-      InetSocketAddress broadcastRpcAddress = getBroadcastRpcAddress(row);
+      InetSocketAddress broadcastRpcAddress = getBroadcastRpcAddress(row, localEndPoint);
       if (broadcastRpcAddress != null
           && broadcastRpcAddress.equals(broadcastRpcAddressToFind)
           && isPeerValid(row)) {
@@ -383,35 +386,31 @@ public class DefaultTopologyMonitor implements TopologyMonitor {
     for (AdminRow row : result) {
       UUID hostId = row.getUuid("host_id");
       if (hostId != null && hostId.equals(hostIdToFind) && isPeerValid(row)) {
-        InetSocketAddress broadcastRpcAddress = getBroadcastRpcAddress(row);
-        return Optional.of(nodeInfoBuilder(row, broadcastRpcAddress, localEndPoint).build());
+        return Optional.ofNullable(getBroadcastRpcAddress(row, localEndPoint))
+            .map(
+                broadcastRpcAddress ->
+                    nodeInfoBuilder(row, broadcastRpcAddress, localEndPoint).build());
       }
     }
     LOG.debug("[{}] Could not find any peer row matching {}", logPrefix, hostIdToFind);
     return Optional.empty();
   }
 
-  // Current versions of Cassandra (3.11 at the time of writing), require the same port for all
-  // nodes. As a consequence, the port is not stored in system tables.
-  // We save it the first time we get a control connection channel.
-  private void savePort(DriverChannel channel) {
-    if (port < 0) {
-      SocketAddress address = channel.getEndPoint().resolve();
-      if (address instanceof InetSocketAddress) {
-        port = ((InetSocketAddress) address).getPort();
-      }
-    }
-  }
-
   /**
    * Determines the broadcast RPC address of the node represented by the given row.
    *
    * @param row The row to inspect; can represent either a local (control) node or a peer node.
+   * @param localEndPoint the control node endpoint that was used to query the node's system tables.
+   *     This is a parameter because it would be racy to call {@code
+   *     controlConnection.channel().getEndPoint()} from within this method, as the control
+   *     connection may have changed its channel since. So this parameter must be provided by the
+   *     caller.
    * @return the broadcast RPC address of the node, if it could be determined; or {@code null}
    *     otherwise.
    */
   @Nullable
-  protected InetSocketAddress getBroadcastRpcAddress(@NonNull AdminRow row) {
+  protected InetSocketAddress getBroadcastRpcAddress(
+      @NonNull AdminRow row, EndPoint localEndPoint) {
     // in system.peers or system.local
     InetAddress broadcastRpcInetAddress = row.getInetAddress("rpc_address");
     if (broadcastRpcInetAddress == null) {
@@ -428,13 +427,46 @@ public class DefaultTopologyMonitor implements TopologyMonitor {
       // system.peers_v2
       broadcastRpcPort = row.getInteger("native_port");
       if (broadcastRpcPort == null || broadcastRpcPort == 0) {
-        // use the default port if no port information was found in the row;
-        // note that in rare situations, the default port might not be known, in which case we
-        // report zero, as advertised in the javadocs of Node and NodeInfo.
-        broadcastRpcPort = port == -1 ? 0 : port;
+        // Current versions of Cassandra (3.11 at the time of writing), require the same port for
+        // all nodes. As a consequence, the port is not stored in system tables.
+        // Use the default port if no port information was found in the row;
+        broadcastRpcPort = getDefaultRpcPort(localEndPoint);
       }
     }
-    return new InetSocketAddress(broadcastRpcInetAddress, broadcastRpcPort);
+    InetSocketAddress broadcastRpcAddress =
+        new InetSocketAddress(broadcastRpcInetAddress, broadcastRpcPort);
+    if (broadcastRpcAddress.equals(localEndPoint.resolve())) {
+      // JAVA-2303: if the peer is actually the control node, ignore that peer as it is likely
+      // a misconfiguration problem.
+      LOG.warn(
+          "[{}] Control node {} has an entry for itself in {}: this entry will be ignored. "
+              + "This is likely due to a misconfiguration; please verify your rpc_address "
+              + "configuration in cassandra.yaml on all nodes in your cluster.",
+          logPrefix,
+          localEndPoint,
+          retrievePeerTableName());
+      return null;
+    }
+
+    return broadcastRpcAddress;
+  }
+
+  /**
+   * Determines the default RPC port to use when connecting to nodes, when no port information was
+   * found in the system tables. Returns zero if the port cannot be determined, in compliance with
+   * the javadocs of {@link Node} and {@link NodeInfo}.
+   *
+   * <p>This implementation returns the port used by the control node, if it can be determined.
+   *
+   * @param localEndPoint the control node endpoint that was used to query the node's system tables.
+   * @return the default port to use, or zero if none was found.
+   */
+  protected int getDefaultRpcPort(EndPoint localEndPoint) {
+    SocketAddress address = localEndPoint.resolve();
+    if (address instanceof InetSocketAddress) {
+      return ((InetSocketAddress) address).getPort();
+    }
+    return 0;
   }
 
   /**
