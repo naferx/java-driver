@@ -71,6 +71,7 @@ public class DefaultTopologyMonitor implements TopologyMonitor {
   private final CompletableFuture<Void> closeFuture;
 
   @VisibleForTesting volatile boolean isSchemaV2;
+  @VisibleForTesting volatile int port = -1;
 
   public DefaultTopologyMonitor(InternalDriverContext context) {
     this.logPrefix = context.getSessionName();
@@ -160,6 +161,8 @@ public class DefaultTopologyMonitor implements TopologyMonitor {
     LOG.debug("[{}] Refreshing node list", logPrefix);
     DriverChannel channel = controlConnection.channel();
     EndPoint localEndPoint = channel.getEndPoint();
+
+    savePort(channel);
 
     CompletionStage<AdminResult> localQuery = query(channel, "SELECT * FROM system.local");
     CompletionStage<AdminResult> peersV2Query = query(channel, "SELECT * FROM system.peers_v2");
@@ -396,6 +399,18 @@ public class DefaultTopologyMonitor implements TopologyMonitor {
     return Optional.empty();
   }
 
+  // Current versions of Cassandra (3.11 at the time of writing), require the same port for all
+  // nodes. As a consequence, the port is not stored in system tables.
+  // We save it the first time we get a control connection channel.
+  private void savePort(DriverChannel channel) {
+    if (port < 0) {
+      SocketAddress address = channel.getEndPoint().resolve();
+      if (address instanceof InetSocketAddress) {
+        port = ((InetSocketAddress) address).getPort();
+      }
+    }
+  }
+
   /**
    * Determines the broadcast RPC address of the node represented by the given row.
    *
@@ -427,10 +442,10 @@ public class DefaultTopologyMonitor implements TopologyMonitor {
       // system.peers_v2
       broadcastRpcPort = row.getInteger("native_port");
       if (broadcastRpcPort == null || broadcastRpcPort == 0) {
-        // Current versions of Cassandra (3.11 at the time of writing), require the same port for
-        // all nodes. As a consequence, the port is not stored in system tables.
-        // Use the default port if no port information was found in the row;
-        broadcastRpcPort = getDefaultRpcPort(localEndPoint);
+        // use the default port if no port information was found in the row;
+        // note that in rare situations, the default port might not be known, in which case we
+        // report zero, as advertised in the javadocs of Node and NodeInfo.
+        broadcastRpcPort = port == -1 ? 0 : port;
       }
     }
     InetSocketAddress broadcastRpcAddress =
@@ -449,24 +464,6 @@ public class DefaultTopologyMonitor implements TopologyMonitor {
     }
 
     return broadcastRpcAddress;
-  }
-
-  /**
-   * Determines the default RPC port to use when connecting to nodes, when no port information was
-   * found in the system tables. Returns zero if the port cannot be determined, in compliance with
-   * the javadocs of {@link Node} and {@link NodeInfo}.
-   *
-   * <p>This implementation returns the port used by the control node, if it can be determined.
-   *
-   * @param localEndPoint the control node endpoint that was used to query the node's system tables.
-   * @return the default port to use, or zero if none was found.
-   */
-  protected int getDefaultRpcPort(EndPoint localEndPoint) {
-    SocketAddress address = localEndPoint.resolve();
-    if (address instanceof InetSocketAddress) {
-      return ((InetSocketAddress) address).getPort();
-    }
-    return 0;
   }
 
   /**

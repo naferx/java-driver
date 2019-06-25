@@ -519,6 +519,7 @@ public class DefaultTopologyMonitorTest {
 
     private TestTopologyMonitor(InternalDriverContext context) {
       super(context);
+      port = 9042;
     }
 
     private void stubQueries(StubbedQuery... queries) {
@@ -540,11 +541,6 @@ public class DefaultTopologyMonitorTest {
         return CompletableFutures.failedFuture(new UnexpectedResponseException(queryString, error));
       }
       return CompletableFuture.completedFuture(nextQuery.result);
-    }
-
-    @Override
-    protected int getDefaultRpcPort(EndPoint localEndPoint) {
-      return 9042;
     }
   }
 
