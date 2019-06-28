@@ -425,7 +425,7 @@ public class DefaultTopologyMonitor implements TopologyMonitor {
    */
   @Nullable
   protected InetSocketAddress getBroadcastRpcAddress(
-      @NonNull AdminRow row, EndPoint localEndPoint) {
+      @NonNull AdminRow row, @NonNull EndPoint localEndPoint) {
     // in system.peers or system.local
     InetAddress broadcastRpcInetAddress = row.getInetAddress("rpc_address");
     if (broadcastRpcInetAddress == null) {
@@ -450,7 +450,7 @@ public class DefaultTopologyMonitor implements TopologyMonitor {
     }
     InetSocketAddress broadcastRpcAddress =
         new InetSocketAddress(broadcastRpcInetAddress, broadcastRpcPort);
-    if (broadcastRpcAddress.equals(localEndPoint.resolve())) {
+    if (row.contains("peer") && broadcastRpcAddress.equals(localEndPoint.resolve())) {
       // JAVA-2303: if the peer is actually the control node, ignore that peer as it is likely
       // a misconfiguration problem.
       LOG.warn(
