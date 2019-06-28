@@ -81,7 +81,6 @@ import org.slf4j.LoggerFactory;
 @RunWith(DataProviderRunner.class)
 public class DefaultTopologyMonitorTest {
 
-  private static final InetSocketAddress ADDRESS1 = new InetSocketAddress("127.0.0.1", 9042);
   private static final InetSocketAddress ADDRESS2 = new InetSocketAddress("127.0.0.2", 9042);
 
   @Mock private InternalDriverContext context;
