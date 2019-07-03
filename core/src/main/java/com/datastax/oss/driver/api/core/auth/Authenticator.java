@@ -57,7 +57,9 @@ public interface Authenticator {
    * Obtain an initial response token for initializing the SASL handshake.
    *
    * @return a completion stage that will complete with the initial response to send to the server
-   *     (which may be {@code null}).
+   *     (which may be {@code null}). Note that the driver will <b></b>clear the contents</b> of the
+   *     returned byte buffer immediately after use (to avoid keeping sensitive information in
+   *     memory).
    */
   @NonNull
   CompletionStage<ByteBuffer> initialResponse();
@@ -68,7 +70,10 @@ public interface Authenticator {
    *
    * @param challenge the server's SASL challenge.
    * @return a completion stage that will complete with the updated SASL token (which may be null to
-   *     indicate the client requires no further action).
+   *     indicate the client requires no further action). Note that the driver will <b></b>clear the
+   *     contents</b> of the returned byte buffer immediately after use (to avoid keeping sensitive
+   *     information in memory); if your authenticator returns the same result for multiple
+   *     evaluations, do not reuse the same buffer.
    */
   @NonNull
   CompletionStage<ByteBuffer> evaluateChallenge(@Nullable ByteBuffer challenge);
