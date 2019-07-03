@@ -36,8 +36,8 @@ public interface SyncAuthenticator extends Authenticator {
    * future.
    *
    * @return The initial response to send to the server (which may be {@code null}). Note that the
-   *     driver will <b></b>clear the contents</b> of the returned byte buffer immediately after use
-   *     (to avoid keeping sensitive information in memory).
+   *     driver will <b>clear the contents</b> of the returned byte buffer immediately after use (to
+   *     avoid keeping sensitive information in memory).
    */
   @Nullable
   ByteBuffer initialResponseSync();
@@ -50,9 +50,9 @@ public interface SyncAuthenticator extends Authenticator {
    *
    * @param challenge the server's SASL challenge; may be {@code null}.
    * @return The updated SASL token (which may be {@code null} to indicate the client requires no
-   *     further action). Note that the driver will <b></b>clear the contents</b> of the returned
-   *     byte buffer immediately after use (to avoid keeping sensitive information in memory); if
-   *     your authenticator returns the same result for multiple evaluations, do not reuse the same
+   *     further action). Note that the driver will <b>clear the contents</b> of the returned byte
+   *     buffer immediately after use (to avoid keeping sensitive information in memory); if your
+   *     authenticator returns the same result for multiple evaluations, do not reuse the same
    *     buffer.
    */
   @Nullable
