@@ -225,7 +225,7 @@ public abstract class SessionBuilder<SelfT extends SessionBuilder, SessionT> {
    * configuration (that is, the {@code advanced.auth-provider} option will be ignored).
    */
   @NonNull
-  public SelfT WithAuth(@Nullable AuthProvider authProvider) {
+  public SelfT withAuth(@Nullable AuthProvider authProvider) {
     this.programmaticArgumentsBuilder.withAuthProvider(authProvider);
     return self;
   }

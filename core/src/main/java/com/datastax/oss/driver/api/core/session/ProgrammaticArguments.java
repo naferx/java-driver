@@ -59,7 +59,7 @@ public class ProgrammaticArguments {
       @NonNull Map<String, String> localDatacenters,
       @NonNull Map<String, Predicate<Node>> nodeFilters,
       @Nullable ClassLoader classLoader,
-      @Nullable AuthProvider authProvider){
+      @Nullable AuthProvider authProvider) {
     this.typeCodecs = typeCodecs;
     this.nodeStateListener = nodeStateListener;
     this.schemaChangeListener = schemaChangeListener;
@@ -106,7 +106,9 @@ public class ProgrammaticArguments {
   }
 
   @Nullable
-  public AuthProvider getAuthProvider() {return authProvider;}
+  public AuthProvider getAuthProvider() {
+    return authProvider;
+  }
 
   public static class Builder {
 
@@ -179,8 +181,9 @@ public class ProgrammaticArguments {
       this.classLoader = classLoader;
       return this;
     }
+
     @NonNull
-    public Builder withAuthProvider(@Nullable AuthProvider authProvider){
+    public Builder withAuthProvider(@Nullable AuthProvider authProvider) {
       this.authProvider = authProvider;
       return this;
     }

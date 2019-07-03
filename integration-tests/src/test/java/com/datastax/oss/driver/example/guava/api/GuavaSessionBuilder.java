@@ -16,7 +16,6 @@
 package com.datastax.oss.driver.example.guava.api;
 
 import com.datastax.oss.driver.api.core.CqlSession;
-import com.datastax.oss.driver.api.core.auth.AuthProvider;
 import com.datastax.oss.driver.api.core.config.DriverConfigLoader;
 import com.datastax.oss.driver.api.core.context.DriverContext;
 import com.datastax.oss.driver.api.core.metadata.Node;
@@ -41,7 +40,6 @@ public class GuavaSessionBuilder extends SessionBuilder<GuavaSessionBuilder, Gua
       NodeStateListener nodeStateListener,
       SchemaChangeListener schemaChangeListener,
       RequestTracker requestTracker,
-      AuthProvider provider,
       Map<String, String> localDatacenters,
       Map<String, Predicate<Node>> nodeFilters,
       ClassLoader classLoader) {
@@ -51,7 +49,6 @@ public class GuavaSessionBuilder extends SessionBuilder<GuavaSessionBuilder, Gua
         nodeStateListener,
         schemaChangeListener,
         requestTracker,
-        provider,
         localDatacenters,
         nodeFilters,
         classLoader);

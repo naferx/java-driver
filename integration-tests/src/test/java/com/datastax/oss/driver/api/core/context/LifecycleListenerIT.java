@@ -110,7 +110,6 @@ public class LifecycleListenerIT {
           null,
           null,
           null,
-          null,
           Collections.emptyMap(),
           Collections.emptyMap(),
           null);
