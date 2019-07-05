@@ -4,6 +4,7 @@
 
 ### 4.2.0 (in progress)
 
+- [bug] JAVA-2323: Driver should fire onAdd event for node with same host id but different IP address
 - [improvement] JAVA-2247: PagingIterable implementations should implement spliterator()
 - [bug] JAVA-2312: Handle UDTs with names that clash with collection types
 - [improvement] JAVA-2307: Improve `@Select` and `@Delete` by not requiring full primary key

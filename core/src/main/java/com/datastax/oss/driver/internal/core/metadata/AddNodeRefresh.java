@@ -20,6 +20,7 @@ import com.datastax.oss.driver.internal.core.context.InternalDriverContext;
 import com.datastax.oss.driver.shaded.guava.common.annotations.VisibleForTesting;
 import com.datastax.oss.driver.shaded.guava.common.collect.ImmutableList;
 import com.datastax.oss.driver.shaded.guava.common.collect.ImmutableMap;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import net.jcip.annotations.ThreadSafe;
@@ -38,18 +39,18 @@ public class AddNodeRefresh extends NodesRefresh {
       DefaultMetadata oldMetadata, boolean tokenMapEnabled, InternalDriverContext context) {
     Map<UUID, Node> oldNodes = oldMetadata.getNodes();
     if (oldNodes.containsKey(newNodeInfo.getHostId())) {
-      return new Result(oldMetadata);
-    } else {
-      DefaultNode newNode = new DefaultNode(newNodeInfo.getEndPoint(), context);
-      copyInfos(newNodeInfo, newNode, null, context.getSessionName());
-      Map<UUID, Node> newNodes =
-          ImmutableMap.<UUID, Node>builder()
-              .putAll(oldNodes)
-              .put(newNode.getHostId(), newNode)
-              .build();
-      return new Result(
-          oldMetadata.withNodes(newNodes, tokenMapEnabled, false, null, context),
-          ImmutableList.of(NodeStateEvent.added(newNode)));
+      Node oldNode = oldNodes.get(newNodeInfo.getHostId());
+      if (oldNode.getEndPoint().equals(newNodeInfo.getEndPoint())) {
+        // Keep the old information if host id and endpoint haven't changed
+        return new Result(oldMetadata);
+      }
     }
+    DefaultNode newNode = new DefaultNode(newNodeInfo.getEndPoint(), context);
+    copyInfos(newNodeInfo, newNode, null, context.getSessionName());
+    Map<UUID, Node> newNodes = new HashMap<>(oldNodes);
+    newNodes.put(newNode.getHostId(), newNode);
+    return new Result(
+        oldMetadata.withNodes(ImmutableMap.copyOf(newNodes), tokenMapEnabled, false, null, context),
+        ImmutableList.of(NodeStateEvent.added(newNode)));
   }
 }

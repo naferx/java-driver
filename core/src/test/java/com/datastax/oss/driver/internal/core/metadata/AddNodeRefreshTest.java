@@ -23,7 +23,6 @@ import com.datastax.oss.driver.api.core.uuid.Uuids;
 import com.datastax.oss.driver.internal.core.context.InternalDriverContext;
 import com.datastax.oss.driver.internal.core.metrics.MetricsFactory;
 import com.datastax.oss.driver.shaded.guava.common.collect.ImmutableMap;
-import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
@@ -35,8 +34,6 @@ import org.mockito.junit.MockitoJUnitRunner;
 
 @RunWith(MockitoJUnitRunner.class)
 public class AddNodeRefreshTest {
-  private static final InetSocketAddress ADDRESS1 = new InetSocketAddress("127.0.0.1", 9042);
-  private static final InetSocketAddress ADDRESS2 = new InetSocketAddress("127.0.0.2", 9042);
 
   @Mock private InternalDriverContext context;
   @Mock protected MetricsFactory metricsFactory;
@@ -84,7 +81,7 @@ public class AddNodeRefreshTest {
   }
 
   @Test
-  public void should_not_add_existing_node() {
+  public void should_not_add_existing_node_with_same_id_and_endpoint() {
     // Given
     DefaultMetadata oldMetadata =
         new DefaultMetadata(
@@ -107,5 +104,38 @@ public class AddNodeRefreshTest {
     assertThat(node1.getDatacenter()).isNull();
     assertThat(node1.getRack()).isNull();
     assertThat(result.events).isEmpty();
+  }
+
+  @Test
+  public void should_add_existing_node_with_same_id_but_different_endpoint() {
+    // Given
+    DefaultMetadata oldMetadata =
+        new DefaultMetadata(
+            ImmutableMap.of(node1.getHostId(), node1), Collections.emptyMap(), null);
+    DefaultEndPoint newEndPoint = TestNodeFactory.newEndPoint(2);
+    UUID newSchemaVersion = Uuids.random();
+    DefaultNodeInfo newNodeInfo =
+        DefaultNodeInfo.builder()
+            .withHostId(node1.getHostId())
+            .withEndPoint(newEndPoint)
+            .withDatacenter("dc1")
+            .withRack("rack2")
+            .withSchemaVersion(newSchemaVersion)
+            .build();
+    AddNodeRefresh refresh = new AddNodeRefresh(newNodeInfo);
+
+    // When
+    MetadataRefresh.Result result = refresh.compute(oldMetadata, false, context);
+
+    // Then
+    Map<UUID, Node> newNodes = result.newMetadata.getNodes();
+    assertThat(newNodes).containsOnlyKeys(node1.getHostId());
+    Node node1Updated = newNodes.get(node1.getHostId());
+    assertThat(node1Updated.getHostId()).isEqualTo(node1.getHostId());
+    assertThat(node1Updated.getEndPoint()).isEqualTo(newEndPoint);
+    assertThat(node1Updated.getDatacenter()).isEqualTo("dc1");
+    assertThat(node1Updated.getRack()).isEqualTo("rack2");
+    assertThat(node1Updated.getSchemaVersion()).isEqualTo(newSchemaVersion);
+    assertThat(result.events).containsExactly(NodeStateEvent.added((DefaultNode) node1Updated));
   }
 }
