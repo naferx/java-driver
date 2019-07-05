@@ -4,6 +4,7 @@
 
 ### 4.2.0 (in progress)
 
+- [bug] JAVA-2324: Mapper is missing support for primitive shorts
 - [bug] JAVA-2325: Mapper should detect primitive boolean getters
 - [bug] JAVA-2312: Handle UDTs with names that clash with collection types
 - [improvement] JAVA-2307: Improve `@Select` and `@Delete` by not requiring full primary key
