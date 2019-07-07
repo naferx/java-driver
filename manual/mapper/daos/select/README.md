@@ -51,13 +51,27 @@ public interface ProductDao {
 }
 ```
 
-If the annotation has a `customWhereClause`, it completely replaces the WHERE clause. The provided
+If the annotation has a [customWhereClause()], it completely replaces the WHERE clause. The provided
 string can contain named placeholders. In that case, the method must have a corresponding parameter
 for each, with the same name and a compatible Java type.
 
 ```java
 @Select(customWhereClause = "description LIKE :searchString")
 PagingIterable<Product> findByDescription(String searchString);
+```
+
+The generated SELECT query can be further customized with [limit()], [perPartitionLimit()],
+[orderBy()], [groupBy()] and [allowFiltering()]. Some of these clauses can also contain placeholders
+whose values will be provided through additional method parameters. Note that it is sometimes not
+possible to determine if a parameter is a primary key component or a placeholder value; therefore
+the rule is that **if your method takes a partial primary key, all other parameters must be
+explicitly annotated with [@CqlName](../../entities/#user-provided-names)**. For example if the
+primary key is `((day int, hour int, minute int), ts timestamp)`:
+
+```java
+// Annotate 'l' so that it's not mistaken for the second PK component
+@Select(limit = ":l")
+PagingIterable<Sale> findDailySales(int day, @CqlName("l") int l);
 ```
 
 A [StatementAttributes](../statement_attributes/) can be added as the **last** parameter. This
@@ -121,6 +135,12 @@ entity class and the [naming strategy](../../entities/#naming-strategy)).
 [@ClusteringColumn]:         https://docs.datastax.com/en/drivers/java/4.0/com/datastax/oss/driver/api/mapper/annotations/ClusteringColumn.html
 [@PartitionKey]:             https://docs.datastax.com/en/drivers/java/4.0/com/datastax/oss/driver/api/mapper/annotations/PartitionKey.html
 [@Select]:                   https://docs.datastax.com/en/drivers/java/4.0/com/datastax/oss/driver/api/mapper/annotations/Select.html
+[allowFiltering()]:          https://docs.datastax.com/en/drivers/java/4.0/com/datastax/oss/driver/api/mapper/annotations/Select.html#allowFiltering--
+[customWhereClause()]:       https://docs.datastax.com/en/drivers/java/4.0/com/datastax/oss/driver/api/mapper/annotations/Select.html#customWhereClause--
+[groupBy()]:                 https://docs.datastax.com/en/drivers/java/4.0/com/datastax/oss/driver/api/mapper/annotations/Select.html#groupBy--
+[limit()]:                   https://docs.datastax.com/en/drivers/java/4.0/com/datastax/oss/driver/api/mapper/annotations/Select.html#limit--
+[orderBy()]:                 https://docs.datastax.com/en/drivers/java/4.0/com/datastax/oss/driver/api/mapper/annotations/Select.html#orderBy--
+[perPartitionLimit()]:       https://docs.datastax.com/en/drivers/java/4.0/com/datastax/oss/driver/api/mapper/annotations/Select.html#perPartitionLimit--
 [MappedAsyncPagingIterable]: https://docs.datastax.com/en/drivers/java/4.0/com/datastax/oss/driver/api/core/MappedAsyncPagingIterable.html
 [PagingIterable]:            https://docs.datastax.com/en/drivers/java/4.0/com/datastax/oss/driver/api/core/PagingIterable.html
 
