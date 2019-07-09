@@ -24,7 +24,6 @@ import com.datastax.oss.driver.api.core.session.SessionBuilder;
 import com.datastax.oss.driver.api.testinfra.ccm.CustomCcmRule;
 import com.datastax.oss.driver.api.testinfra.session.SessionUtils;
 import com.datastax.oss.driver.internal.core.auth.PlainTextAuthProvider;
-import com.datastax.oss.driver.internal.core.auth.RuntimePlainTextAuthProvider;
 import com.google.common.util.concurrent.Uninterruptibles;
 import java.util.concurrent.TimeUnit;
 import org.junit.BeforeClass;
@@ -67,7 +66,7 @@ public class PlainTextAuthProviderIT {
     SessionBuilder builder =
         SessionUtils.baseBuilder()
             .addContactEndPoints(ccm.getContactPoints())
-            .withAuth(new RuntimePlainTextAuthProvider("prefix", "cassandra", "cassandra"));
+            .withPlainTextAuthProvider("cassandra", "cassandra");
 
     try (CqlSession session = (CqlSession) builder.build()) {
       session.execute("select * from system.local");

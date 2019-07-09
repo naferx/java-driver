@@ -30,6 +30,7 @@ import com.datastax.oss.driver.api.core.metadata.schema.SchemaChangeListener;
 import com.datastax.oss.driver.api.core.tracker.RequestTracker;
 import com.datastax.oss.driver.api.core.type.codec.TypeCodec;
 import com.datastax.oss.driver.internal.core.ContactPoints;
+import com.datastax.oss.driver.internal.core.auth.RuntimePlainTextAuthProvider;
 import com.datastax.oss.driver.internal.core.config.typesafe.DefaultDriverConfigLoader;
 import com.datastax.oss.driver.internal.core.context.DefaultDriverContext;
 import com.datastax.oss.driver.internal.core.context.InternalDriverContext;
@@ -225,9 +226,21 @@ public abstract class SessionBuilder<SelfT extends SessionBuilder, SessionT> {
    * configuration (that is, the {@code advanced.auth-provider} option will be ignored).
    */
   @NonNull
-  public SelfT withAuth(@Nullable AuthProvider authProvider) {
+  public SelfT withAuthProvider(@Nullable AuthProvider authProvider) {
     this.programmaticArgumentsBuilder.withAuthProvider(authProvider);
     return self;
+  }
+
+  /**
+   * Register an auth provider
+   *
+   * <p>If the auth provider is specified programmatically with this method, it overrides the
+   * configuration (that is, the {@code advanced.auth-provider} option will be ignored).
+   */
+  @NonNull
+  public SelfT withPlainTextAuthProvider(@NonNull String username, @NonNull String password) {
+    return withAuthProvider(
+        new RuntimePlainTextAuthProvider("RunTimePlainTextAuthProvider", username, password));
   }
 
   /**
